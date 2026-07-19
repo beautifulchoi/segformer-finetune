@@ -24,6 +24,14 @@ python -m HF_pipeline.train \
   --device cuda:0
 ```
 
+The same command is available as a repository-root-safe wrapper:
+
+```bash
+HF_pipeline/scripts/train.sh
+```
+
+Override defaults with environment variables such as `PYTHON_BIN`, `CSV_PATH`, `OUTPUT_DIR`, `MODEL_ID`, and `DEVICE`, or append additional CLI arguments.
+
 Defaults follow the original SegFormer-B0 configuration:
 
 - 160,000 optimizer steps;
@@ -63,6 +71,14 @@ python -m HF_pipeline.inference \
   --output-dir HF_pipeline/outputs/test \
   --device cuda:0
 ```
+
+The CSV inference command is also available as:
+
+```bash
+HF_pipeline/scripts/inference.sh
+```
+
+Its defaults can be changed with `PYTHON_BIN`, `CHECKPOINT`, `CSV_PATH`, `SPLIT`, `OUTPUT_DIR`, and `DEVICE`. Append `--image path/to/image.jpg` to use the single-image CLI path instead of the default CSV input.
 
 Single images and directories are also supported:
 
