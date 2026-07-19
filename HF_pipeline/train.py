@@ -31,6 +31,7 @@ class TrainArguments:
     seed: int
     amp: bool
     local_files_only: bool
+    allow_insecure_download: bool
 
 
 def parse_args() -> TrainArguments:
@@ -49,6 +50,7 @@ def parse_args() -> TrainArguments:
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--amp", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--local-files-only", action="store_true")
+    parser.add_argument("--allow-insecure-download", action="store_true")
     values = parser.parse_args()
     return TrainArguments(**vars(values))
 
@@ -86,7 +88,11 @@ def main() -> None:
         pin_memory=device.type == "cuda",
         persistent_workers=arguments.workers > 0,
     )
-    model = build_model(arguments.model_id, arguments.local_files_only)
+    model = build_model(
+        arguments.model_id,
+        arguments.local_files_only,
+        arguments.allow_insecure_download,
+    )
     arguments.output_dir.mkdir(parents=True, exist_ok=True)
     with (arguments.output_dir / "config.json").open("w", encoding="utf-8") as stream:
         json.dump(asdict(arguments), stream, default=str, indent=2)

@@ -32,6 +32,8 @@ HF_pipeline/scripts/train.sh
 
 Override defaults with environment variables such as `PYTHON_BIN`, `CSV_PATH`, `OUTPUT_DIR`, `MODEL_ID`, and `DEVICE`, or append additional CLI arguments.
 
+If the Hugging Face download fails because the environment has an invalid or unavailable CA certificate, retry explicitly with `--allow-insecure-download` or `ALLOW_INSECURE_DOWNLOAD=1`. This disables TLS certificate verification only for the retry and should be used only on a trusted network.
+
 Defaults follow the original SegFormer-B0 configuration:
 
 - 160,000 optimizer steps;

@@ -10,6 +10,10 @@ CSV_PATH="${CSV_PATH:-$REPO_ROOT/data/coco_binary/manifest.csv}"
 SPLIT="${SPLIT:-test}"
 OUTPUT_DIR="${OUTPUT_DIR:-$REPO_ROOT/HF_pipeline/outputs/test}"
 DEVICE="${DEVICE:-cuda:0}"
+INSECURE_ARGS=()
+if [[ "${ALLOW_INSECURE_DOWNLOAD:-0}" == "1" ]]; then
+  INSECURE_ARGS+=(--allow-insecure-download)
+fi
 
 INPUT_ARGS=()
 HAS_INPUT=false
@@ -27,5 +31,6 @@ exec "$PYTHON_BIN" -m HF_pipeline.inference \
   --checkpoint "$CHECKPOINT" \
   --output-dir "$OUTPUT_DIR" \
   --device "$DEVICE" \
+  "${INSECURE_ARGS[@]}" \
   "${INPUT_ARGS[@]}" \
   "$@"

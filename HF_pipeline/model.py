@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import warnings
 from pathlib import Path
 from typing import TypedDict
 
+import requests
+from huggingface_hub import configure_http_backend
 from transformers import (
     SegformerConfig,
     SegformerForSemanticSegmentation,
@@ -30,8 +33,22 @@ def model_metadata() -> ModelMetadata:
     }
 
 
-def build_model(
-    model_id: str = MODEL_ID, local_files_only: bool = False
+def configure_insecure_hub_download() -> None:
+    def backend_factory() -> requests.Session:
+        session = requests.Session()
+        session.verify = False
+        return session
+
+    warnings.warn(
+        "Retrying Hugging Face downloads with TLS certificate verification disabled.",
+        RuntimeWarning,
+        stacklevel=2,
+    )
+    configure_http_backend(backend_factory=backend_factory)
+
+
+def _load_model(
+    model_id: str, local_files_only: bool
 ) -> SegformerForSemanticSegmentation:
     config = build_config(model_id, local_files_only)
     return SegformerForSemanticSegmentation.from_pretrained(
@@ -40,6 +57,20 @@ def build_model(
         ignore_mismatched_sizes=True,
         local_files_only=local_files_only,
     )
+
+
+def build_model(
+    model_id: str = MODEL_ID,
+    local_files_only: bool = False,
+    allow_insecure_download: bool = False,
+) -> SegformerForSemanticSegmentation:
+    try:
+        return _load_model(model_id, local_files_only)
+    except requests.exceptions.SSLError:
+        if not allow_insecure_download or local_files_only:
+            raise
+        configure_insecure_hub_download()
+        return _load_model(model_id, local_files_only)
 
 
 def build_model_from_config(config: SegformerConfig) -> SegformerForSemanticSegmentation:

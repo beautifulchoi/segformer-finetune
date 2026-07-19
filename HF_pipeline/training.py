@@ -10,6 +10,7 @@ from torch import nn
 from torch.optim import AdamW, Optimizer
 from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data import DataLoader
+from tqdm.auto import tqdm
 from transformers import SegformerForSemanticSegmentation, SegformerImageProcessor
 
 from .metrics import BinaryMetrics, confusion_matrix, metrics_from_confusion
@@ -149,7 +150,13 @@ def run_training(
     train_iterator = iter(train_loader)
     best_metrics = BinaryMetrics(0.0, 0.0)
     loss_window: list[float] = []
-    for step in range(1, max_steps + 1):
+    progress = tqdm(
+        range(1, max_steps + 1),
+        desc="HF SegFormer training",
+        unit="step",
+        dynamic_ncols=True,
+    )
+    for step in progress:
         model.train()
         optimizer.zero_grad(set_to_none=True)
         step_loss = 0.0
@@ -171,14 +178,22 @@ def run_training(
         scaler.step(optimizer)
         scaler.update()
         scheduler.step()
-        loss_window.append(step_loss / gradient_accumulation_steps)
+        average_loss = step_loss / gradient_accumulation_steps
+        loss_window.append(average_loss)
         if step % log_interval == 0 or step == max_steps:
-            print(f"step={step} loss={sum(loss_window) / len(loss_window):.5f}")
+            progress.set_postfix(
+                loss=f"{sum(loss_window) / len(loss_window):.5f}",
+                lr=f"{optimizer.param_groups[0]['lr']:.2e}",
+            )
             loss_window.clear()
         if step % eval_interval == 0 or step == max_steps:
             metrics = evaluate(model, val_loader, device, amp)
-            append_metrics(metrics_path, step, step_loss / gradient_accumulation_steps, metrics)
-            print(f"step={step} mIoU={metrics.mean_iou:.5f} mDice={metrics.mean_dice:.5f}")
+            append_metrics(metrics_path, step, average_loss, metrics)
+            progress.set_postfix(
+                loss=f"{average_loss:.5f}",
+                mIoU=f"{metrics.mean_iou:.5f}",
+                mDice=f"{metrics.mean_dice:.5f}",
+            )
             if metrics.mean_iou >= best_metrics.mean_iou:
                 best_metrics = metrics
                 save_artifacts(

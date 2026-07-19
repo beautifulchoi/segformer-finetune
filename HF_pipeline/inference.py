@@ -13,7 +13,7 @@ from PIL import Image
 
 from .data import load_image, load_mask, read_csv_records
 from .metrics import confusion_matrix, metrics_from_confusion
-from .model import build_processor
+from .model import build_model, build_processor
 from transformers import SegformerForSemanticSegmentation, SegformerImageProcessor
 
 
@@ -78,6 +78,7 @@ def parse_args():
     parser.add_argument("--device", default="cuda:0")
     parser.add_argument("--amp", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--local-files-only", action="store_true")
+    parser.add_argument("--allow-insecure-download", action="store_true")
     return parser.parse_args()
 
 
@@ -86,8 +87,10 @@ def main() -> None:
     device = torch.device(arguments.device)
     if device.type == "cuda" and not torch.cuda.is_available():
         raise RuntimeError("CUDA was requested but is unavailable")
-    model = SegformerForSemanticSegmentation.from_pretrained(
-        arguments.checkpoint, local_files_only=arguments.local_files_only
+    model = build_model(
+        str(arguments.checkpoint),
+        arguments.local_files_only,
+        arguments.allow_insecure_download,
     )
     nn.Module.to(model, device)
     processor = build_processor()

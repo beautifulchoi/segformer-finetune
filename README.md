@@ -25,6 +25,8 @@ DEVICE=cuda:0 \
 HF_pipeline/scripts/train.sh
 ```
 
+If the model download encounters a certificate error, retry on a trusted network with `ALLOW_INSECURE_DOWNLOAD=1` or append `--allow-insecure-download`. The fallback emits a warning and disables certificate verification only for that retry.
+
 Run a short smoke test before a full training job:
 
 ```bash
