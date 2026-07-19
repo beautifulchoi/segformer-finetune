@@ -5,6 +5,8 @@
 >
 > This repository extends the official SegFormer implementation with a CSV-driven workflow for fine-tuning SegFormer-B0 on custom binary semantic-segmentation datasets. It includes dataset preparation, image/mask validation, Hugging Face checkpoint conversion, one-GPU training, held-out evaluation, and reusable inference with binary masks and overlays. See [`local_configs/segformer_b0_binary_csv.py`](local_configs/segformer_b0_binary_csv.py), [`inference.py`](inference.py), and [`RUN_REPORT.md`](RUN_REPORT.md) for the custom workflow and verified commands.
 
+For a native Hugging Face Transformers implementation with a custom binary decoder, see [`HF_pipeline/README.md`](HF_pipeline/README.md). It uses the same CSV dataset contract and original SegFormer-B0 optimizer and schedule defaults, while delegating image and mask preprocessing to `SegformerImageProcessor` and saving checkpoints that can be loaded directly by Transformers.
+
 # SegFormer: Simple and Efficient Design for Semantic Segmentation with Transformers
 
 <!-- ![image](resources/image.png) -->
