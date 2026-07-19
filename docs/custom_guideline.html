@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Step-by-step guide for fine-tuning SegFormer-B0 on a custom CSV binary-segmentation dataset.">
+  <title>Custom Dataset Fine-Tuning | SegFormer</title>
+  <style>
+    :root {
+      --ink: #17212b;
+      --muted: #5e6b77;
+      --paper: #f5f7f8;
+      --surface: #ffffff;
+      --surface-soft: #edf2f3;
+      --line: #d7e0e4;
+      --navy: #102a43;
+      --navy-deep: #0b1d2d;
+      --teal: #0b7a75;
+      --teal-soft: #d8f0ec;
+      --orange: #d9653b;
+      --orange-soft: #fce4d8;
+      --yellow: #f0b84b;
+      --shadow: 0 16px 40px rgba(16, 42, 67, 0.09);
+      --radius-lg: 24px;
+      --radius-md: 16px;
+      --radius-sm: 10px;
+      --content: 1180px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.6;
+    }
+    a { color: var(--teal); text-underline-offset: 3px; }
+    a:hover { color: var(--orange); }
+    code, pre, .eyebrow, .step-number, .metric-value { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; }
+    .wrap { width: min(calc(100% - 40px), var(--content)); margin: 0 auto; }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      color: #f8fbfc;
+      background:
+        radial-gradient(circle at 82% 14%, rgba(240, 184, 75, 0.25), transparent 22rem),
+        radial-gradient(circle at 8% 100%, rgba(11, 122, 117, 0.34), transparent 26rem),
+        var(--navy-deep);
+      border-bottom: 1px solid rgba(255,255,255,.12);
+    }
+    .hero::after {
+      content: "";
+      position: absolute;
+      width: 280px;
+      height: 280px;
+      right: 8%;
+      bottom: -190px;
+      border: 1px solid rgba(240, 184, 75, .45);
+      border-radius: 50%;
+      box-shadow: 0 0 0 28px rgba(240, 184, 75, .06), 0 0 0 56px rgba(240, 184, 75, .03);
+    }
+    .hero-inner { position: relative; z-index: 1; padding: 76px 0 68px; }
+    .eyebrow { color: var(--yellow); font-size: 12px; letter-spacing: .16em; text-transform: uppercase; }
+    h1, h2, h3 { margin: 0; line-height: 1.12; letter-spacing: -.035em; }
+    h1 { max-width: 760px; margin-top: 14px; font-size: clamp(2.5rem, 6vw, 5.5rem); }
+    .hero-lede { max-width: 690px; margin: 22px 0 0; color: #c8d6dd; font-size: clamp(1.05rem, 2vw, 1.28rem); }
+    .hero-meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 32px; }
+    .pill { padding: 7px 11px; color: #deebee; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16); border-radius: 999px; font-size: 13px; }
+
+    .toc { position: sticky; top: 0; z-index: 5; background: rgba(245,247,248,.92); border-bottom: 1px solid var(--line); backdrop-filter: blur(12px); }
+    .toc-inner { display: flex; gap: 22px; overflow-x: auto; padding: 14px 0; white-space: nowrap; }
+    .toc a { color: var(--muted); font-size: 13px; font-weight: 700; text-decoration: none; }
+    .toc a:hover, .toc a:focus-visible { color: var(--orange); }
+
+    main { padding: 68px 0 96px; }
+    section { scroll-margin-top: 76px; }
+    .section-heading { max-width: 720px; margin-bottom: 28px; }
+    .section-heading h2 { margin-top: 8px; font-size: clamp(1.8rem, 3vw, 2.8rem); }
+    .section-heading p { margin: 14px 0 0; color: var(--muted); }
+    .kicker { color: var(--teal); font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+
+    .diagram-shell { padding: 26px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
+    .diagram-scroll { overflow-x: auto; padding-bottom: 4px; }
+    .diagram { display: block; width: 1080px; max-width: none; height: auto; }
+    .diagram-note { display: flex; gap: 10px; align-items: flex-start; margin: 18px 0 0; padding: 13px 15px; color: #38505d; background: var(--surface-soft); border-left: 3px solid var(--yellow); border-radius: var(--radius-sm); font-size: 14px; }
+
+    .steps { display: grid; gap: 16px; }
+    .step { display: grid; grid-template-columns: 76px 1fr; gap: 20px; min-width: 0; padding: 26px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); }
+    .step-number { display: grid; place-items: center; width: 52px; height: 52px; color: var(--navy); background: var(--yellow); border-radius: 14px; font-size: 15px; font-weight: 800; }
+    .step h3 { font-size: 1.35rem; }
+    .step p { margin: 10px 0 0; color: var(--muted); }
+    .step ul { margin: 14px 0 0; padding-left: 20px; }
+    .step li + li { margin-top: 5px; }
+    .step code, .callout code { padding: 2px 5px; color: var(--navy); background: var(--surface-soft); border-radius: 5px; font-size: .92em; }
+    .step code, .callout code, .change-card code, .check-card code { overflow-wrap: anywhere; }
+
+    .command-grid, .file-grid, .check-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .command-card, .file-card, .check-card, .change-card { min-width: 0; padding: 22px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); }
+    .command-card h3, .file-card h3, .check-card h3 { font-size: 1.05rem; }
+    .command-card p, .file-card p, .check-card p { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
+    pre { overflow-x: auto; overflow-wrap: anywhere; white-space: pre-wrap; margin: 16px 0 0; padding: 16px; color: #d8e8ec; background: var(--navy-deep); border-radius: var(--radius-sm); font-size: 12px; line-height: 1.65; }
+    .file-card { display: block; color: inherit; text-decoration: none; transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease; }
+    .file-card:hover, .file-card:focus-visible { color: inherit; border-color: var(--teal); box-shadow: 0 10px 24px rgba(11, 122, 117, .12); transform: translateY(-2px); }
+    .file-card h3, .file-card code { overflow-wrap: anywhere; }
+    .file-card code { color: var(--teal); background: none; padding: 0; }
+
+    .change-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .change-card { padding: 22px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); }
+    .change-card h3 { font-size: 1.05rem; }
+    .change-card p { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
+    .change-card ul { margin: 14px 0 0; padding-left: 20px; font-size: 14px; }
+    .change-card li + li { margin-top: 5px; }
+
+    .callout { margin-top: 22px; padding: 22px; color: #5a321f; background: var(--orange-soft); border: 1px solid #f4c4ad; border-radius: var(--radius-md); }
+    .callout strong { color: #8b3e25; }
+    .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 20px; }
+    .metric { padding: 18px; background: var(--surface-soft); border-radius: var(--radius-sm); }
+    .metric-value { display: block; color: var(--navy); font-size: 1.7rem; font-weight: 800; }
+    .metric-label { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; }
+
+    footer { padding: 28px 0 42px; color: var(--muted); border-top: 1px solid var(--line); font-size: 13px; }
+    footer a { font-weight: 700; }
+    :focus-visible { outline: 3px solid var(--yellow); outline-offset: 3px; }
+    @media (max-width: 760px) {
+      .wrap { width: min(calc(100% - 28px), var(--content)); }
+      .hero-inner { padding: 52px 0 48px; }
+      main { padding-top: 46px; }
+      .step { grid-template-columns: 1fr; gap: 14px; padding: 20px; }
+      .command-grid, .file-grid, .check-grid, .change-grid { grid-template-columns: 1fr; }
+      .metrics { grid-template-columns: repeat(2, 1fr); }
+      .diagram-shell { padding: 16px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <header class="hero" id="top">
+    <div class="wrap hero-inner">
+      <div class="eyebrow">SegFormer-B0 / Custom Dataset</div>
+      <h1>From a CSV manifest to a verified segmentation checkpoint.</h1>
+      <p class="hero-lede">A practical guide to preparing image-mask pairs, transferring the Hugging Face weights, training for one epoch, evaluating the holdout split, and running inference.</p>
+      <div class="hero-meta" aria-label="Workflow summary">
+        <span class="pill">CSV is the source of truth</span>
+        <span class="pill">2 class IDs: 0 / 1</span>
+        <span class="pill">512 × 512 pipeline</span>
+        <span class="pill">GPU 0 smoke run</span>
+      </div>
+    </div>
+  </header>
+
+  <nav class="toc" aria-label="Page sections">
+    <div class="wrap toc-inner">
+      <a href="#flow">01 / Flow</a>
+      <a href="#steps">02 / Procedure</a>
+      <a href="#changes">03 / Changes</a>
+      <a href="#commands">04 / Commands</a>
+      <a href="#customize">05 / Customize</a>
+      <a href="#files">06 / Files</a>
+    </div>
+  </nav>
+
+  <main>
+    <section id="flow" class="wrap">
+      <div class="section-heading">
+        <div class="kicker">The whole procedure</div>
+        <h2>One controlled path from raw data to usable predictions.</h2>
+        <p>Every stage has a clear input and output. The manifest assigns the split, the dataset validates the pair, the converter protects the pretrained weights, and inference writes class-ID masks.</p>
+      </div>
+      <div class="diagram-shell">
+        <div class="diagram-scroll">
+          <svg class="diagram" viewBox="0 0 1080 265" role="img" aria-labelledby="diagram-title diagram-desc">
+            <title id="diagram-title">SegFormer custom dataset fine-tuning pipeline</title>
+            <desc id="diagram-desc">Seven stages flow from image and mask files to a CSV manifest, validation, checkpoint conversion, one epoch training, test evaluation, and inference outputs.</desc>
+            <defs>
+              <linearGradient id="flow-line" x1="0" x2="1">
+                <stop offset="0" stop-color="#0b7a75" />
+                <stop offset="1" stop-color="#d9653b" />
+              </linearGradient>
+              <filter id="node-shadow" x="-20%" y="-20%" width="140%" height="150%">
+                <feDropShadow dx="0" dy="6" stdDeviation="5" flood-color="#102a43" flood-opacity=".12" />
+              </filter>
+            </defs>
+            <path d="M125 113 H170 M280 113 H325 M435 113 H480 M590 113 H635 M745 113 H790 M900 113 H945" stroke="url(#flow-line)" stroke-width="3" fill="none" />
+            <path d="M162 106 l9 7 -9 7 M317 106 l9 7 -9 7 M472 106 l9 7 -9 7 M627 106 l9 7 -9 7 M782 106 l9 7 -9 7 M937 106 l9 7 -9 7" fill="#d9653b" />
+            <g filter="url(#node-shadow)">
+              <rect x="10" y="58" width="115" height="110" rx="16" fill="#d8f0ec" stroke="#0b7a75" />
+              <rect x="170" y="58" width="110" height="110" rx="16" fill="#ffffff" stroke="#d7e0e4" />
+              <rect x="325" y="58" width="110" height="110" rx="16" fill="#ffffff" stroke="#d7e0e4" />
+              <rect x="480" y="58" width="110" height="110" rx="16" fill="#fce4d8" stroke="#d9653b" />
+              <rect x="635" y="58" width="110" height="110" rx="16" fill="#ffffff" stroke="#d7e0e4" />
+              <rect x="790" y="58" width="110" height="110" rx="16" fill="#ffffff" stroke="#d7e0e4" />
+              <rect x="945" y="58" width="125" height="110" rx="16" fill="#102a43" stroke="#f0b84b" />
+            </g>
+            <g text-anchor="middle" font-family="Inter, Arial, sans-serif">
+              <g fill="#0b7a75" font-size="11" font-weight="800"><text x="67" y="83">INPUT</text></g>
+              <g fill="#17212b" font-size="13" font-weight="800"><text x="67" y="112">Images +</text><text x="67" y="130">masks</text></g>
+              <g fill="#5e6b77" font-size="11"><text x="67" y="151">source files</text></g>
+              <g fill="#d9653b" font-size="11" font-weight="800"><text x="225" y="83">01</text></g>
+              <g fill="#17212b" font-size="13" font-weight="800"><text x="225" y="112">CSV</text><text x="225" y="130">manifest</text></g>
+              <g fill="#5e6b77" font-size="11"><text x="225" y="151">pair + split</text></g>
+              <g fill="#d9653b" font-size="11" font-weight="800"><text x="380" y="83">02</text></g>
+              <g fill="#17212b" font-size="13" font-weight="800"><text x="380" y="112">Validate</text><text x="380" y="130">dataset</text></g>
+              <g fill="#5e6b77" font-size="11"><text x="380" y="151">paths + values</text></g>
+              <g fill="#d9653b" font-size="11" font-weight="800"><text x="535" y="83">03</text></g>
+              <g fill="#17212b" font-size="13" font-weight="800"><text x="535" y="112">Convert</text><text x="535" y="130">checkpoint</text></g>
+              <g fill="#8b3e25" font-size="11"><text x="535" y="151">HF → MMSeg</text></g>
+              <g fill="#d9653b" font-size="11" font-weight="800"><text x="690" y="83">04</text></g>
+              <g fill="#17212b" font-size="13" font-weight="800"><text x="690" y="112">Configure</text><text x="690" y="130">SegFormer</text></g>
+              <g fill="#5e6b77" font-size="11"><text x="690" y="151">2 classes</text></g>
+              <g fill="#d9653b" font-size="11" font-weight="800"><text x="845" y="83">05</text></g>
+              <g fill="#17212b" font-size="13" font-weight="800"><text x="845" y="112">Train +</text><text x="845" y="130">validate</text></g>
+              <g fill="#5e6b77" font-size="11"><text x="845" y="151">one epoch</text></g>
+              <g fill="#f0b84b" font-size="11" font-weight="800"><text x="1007" y="83">06 / OUTPUT</text></g>
+              <g fill="#f8fbfc" font-size="13" font-weight="800"><text x="1007" y="112">Test +</text><text x="1007" y="130">inference</text></g>
+              <g fill="#c8d6dd" font-size="11"><text x="1007" y="151">masks + overlays</text></g>
+            </g>
+            <text x="10" y="220" fill="#5e6b77" font-family="SFMono-Regular, Consolas, monospace" font-size="12">CSV controls pairing and split assignment at every downstream stage.</text>
+          </svg>
+        </div>
+        <div class="diagram-note"><strong>Key rule:</strong><span>camera tokens such as <code>cam1</code>, <code>cam2</code>, and <code>cam3</code> are used only for statistics. They never decide pairing or the train/val/test split. On narrow screens, scroll the diagram horizontally to see the complete flow.</span></div>
+      </div>
+    </section>
+
+    <section id="steps" class="wrap" style="margin-top: 76px;">
+      <div class="section-heading">
+        <div class="kicker">Procedure</div>
+        <h2>Six steps, each with a concrete artifact.</h2>
+        <p>Use the sample COCO128-Seg run as a reference, then replace the data preparation step with your own image-mask export.</p>
+      </div>
+      <div class="steps">
+        <article class="step"><div class="step-number">01</div><div><h3>Prepare image and mask pairs</h3><p>Place every source image and its single-channel mask in a reproducible dataset directory. The sample script downloads COCO128-Seg, rasterizes YOLO polygons, and writes class IDs.</p><ul><li>Image and mask dimensions must match.</li><li>Mask values must be <code>{0, 1}</code> or <code>{0, 255}</code>.</li><li>Use the CSV, not filename conventions, to define pairing.</li></ul></div></article>
+        <article class="step"><div class="step-number">02</div><div><h3>Create and validate the CSV manifest</h3><p>The manifest contains <code>image</code>, <code>mask</code>, and <code>split</code> columns. Paths may be absolute or relative to the manifest directory or configured data root.</p><ul><li>Rows are assigned to <code>train</code>, <code>val</code>, or <code>test</code>.</li><li>Missing files, duplicate pairs, invalid masks, empty splits, and shape mismatches fail early.</li><li>The dataset prints split counts and optional camera statistics.</li></ul></div></article>
+        <article class="step"><div class="step-number">03</div><div><h3>Convert the Hugging Face checkpoint</h3><p>The converter maps the B0 backbone and compatible SegFormer decoder weights from <code>nvidia/segformer-b0-finetuned-ade-512-512</code> into the local MMSeg key format.</p><ul><li>Backbone loading coverage is checked before saving.</li><li>ADE-150 classifier weights are skipped because this task has two classes.</li><li>The serialized tensors are compared after saving.</li></ul></div></article>
+        <article class="step"><div class="step-number">04</div><div><h3>Configure the binary segmentation model</h3><p>The custom config keeps the original MMSeg training flow while swapping in <code>CsvBinaryDataset</code> and <code>LoadBinaryAnnotations</code>.</p><ul><li>SegFormer-B0 decode head uses <code>num_classes=2</code>.</li><li>Images are resized to <code>512 × 512</code> with ImageNet normalization.</li><li>Batch size 1 and zero workers make the one-GPU smoke test portable.</li></ul></div></article>
+        <article class="step"><div class="step-number">05</div><div><h3>Train one epoch and validate</h3><p>Run the epoch-based smoke test on one visible GPU. The runner saves an epoch checkpoint and evaluates the validation split at the end of the epoch.</p><ul><li>Expected checkpoint: <code>work_dirs/segformer_b0_binary_smoke/epoch_1.pth</code>.</li><li>The verified sample run reported validation mIoU <strong>51.51%</strong> and mDice <strong>67.87%</strong>.</li><li>Before longer training, confirm the loss decreases and the masks look plausible.</li></ul></div></article>
+        <article class="step"><div class="step-number">06</div><div><h3>Evaluate the holdout and run inference</h3><p>Test evaluation reads only CSV rows with <code>split=test</code>. The root-level inference script accepts an image, directory, or CSV and writes class-ID masks plus original-resolution overlays.</p><ul><li>Raw masks contain only <code>0</code> and <code>1</code>.</li><li>CSV inference reports aggregate IoU and Dice when masks are present.</li><li>Output names include an index to avoid collisions.</li></ul></div></article>
+      </div>
+    </section>
+
+    <section id="changes" class="wrap" style="margin-top: 76px;">
+      <div class="section-heading">
+        <div class="kicker">What changed</div>
+        <h2>What was changed and what was added in this fork.</h2>
+        <p>The official SegFormer architecture and MMSegmentation training flow remain the foundation. The additions make custom binary segmentation reproducible and inspectable.</p>
+      </div>
+      <div class="change-grid">
+        <article class="change-card"><h3>Original files changed</h3><p>Only compatibility and registration points were edited in the upstream codebase.</p><ul><li>Registered the CSV dataset and binary annotation loader.</li><li>Added PyTorch 2.8 / legacy MMCV compatibility shims.</li><li>Removed optional decode-head imports that require unavailable MMCV compiled ops.</li><li>Updated legacy NumPy float aliases used by evaluation metrics.</li></ul></article>
+        <article class="change-card"><h3>New workflow files</h3><p>These files implement the custom dataset path without replacing the official configs.</p><ul><li>CSV dataset, binary mask loader, and tests.</li><li>COCO128-Seg preparation and validation script.</li><li>Hugging Face to MMSeg checkpoint converter and report.</li><li>Two-class training config and root-level inference script.</li></ul></article>
+        <article class="change-card"><h3>New documentation and evidence</h3><p>The repository now explains and records the verified path.</p><ul><li>Top-of-file README notice for custom-dataset fine-tuning.</li><li><code>RUN_REPORT.md</code> with setup commands, metrics, and compatibility notes.</li><li>This visual guideline with the pipeline diagram and operating procedure.</li><li>Inference masks and overlays from the five-image test split.</li></ul></article>
+        <article class="change-card"><h3>Intentionally unchanged</h3><p>The original ADE20K configs, model architecture, and upstream training entry points remain available. The sample data, pretrained weights, and work directories stay ignored and local.</p></article>
+      </div>
+    </section>
+
+    <section id="commands" class="wrap" style="margin-top: 76px;">
+      <div class="section-heading">
+        <div class="kicker">Run it</div>
+        <h2>Commands for the verified sample workflow.</h2>
+        <p>Run these from the repository root with the existing CUDA-enabled environment. Replace paths after your own CSV and checkpoint are ready.</p>
+      </div>
+      <div class="command-grid">
+        <article class="command-card"><h3>Prepare the sample CSV</h3><p>Creates a deterministic 20 / 5 / 5 train-val-test split.</p><pre><code>python tools/prepare_coco_csv.py \
+  --output-dir data/coco_binary \
+  --cache-dir data/cache \
+  --max-images 30 \
+  --seed 20260719</code></pre></article>
+        <article class="command-card"><h3>Convert pretrained weights</h3><p>Writes an MMSeg checkpoint with the two-class head reinitialized.</p><pre><code>python tools/convert_hf_segformer_to_mmseg.py \
+  --config local_configs/segformer_b0_binary_csv.py \
+  --output pretrained/segformer_b0_ade512_mmseg.pth \
+  --report pretrained/segformer_b0_ade512_mmseg.json</code></pre></article>
+        <article class="command-card"><h3>Train one epoch on GPU 0</h3><p>The custom config already points to the CSV and converted checkpoint.</p><pre><code>CUDA_VISIBLE_DEVICES=0 python tools/train.py \
+  local_configs/segformer_b0_binary_csv.py \
+  --work-dir work_dirs/segformer_b0_binary_smoke \
+  --seed 20260719 --deterministic</code></pre></article>
+        <article class="command-card"><h3>Evaluate the test split</h3><p>Uses only rows with <code>split=test</code>.</p><pre><code>CUDA_VISIBLE_DEVICES=0 python tools/test.py \
+  local_configs/segformer_b0_binary_csv.py \
+  work_dirs/segformer_b0_binary_smoke/epoch_1.pth \
+  --eval mIoU mDice</code></pre></article>
+        <article class="command-card"><h3>Run reusable inference</h3><p>Writes masks and overlays into the selected output directory.</p><pre><code>CUDA_VISIBLE_DEVICES=0 python inference.py \
+  --config local_configs/segformer_b0_binary_csv.py \
+  --checkpoint work_dirs/segformer_b0_binary_smoke/epoch_1.pth \
+  --input data/coco_binary/manifest.csv \
+  --output-dir outputs/inference_test \
+  --device cuda:0 --split test</code></pre></article>
+      </div>
+      <div class="callout"><strong>Sample result:</strong> the 30-image run completed one epoch, evaluated five test rows at mIoU <strong>41.11%</strong> and mDice <strong>55.79%</strong>, and produced five masks and five overlays. These numbers are a smoke-test reference, not a target for a new dataset.</div>
+    </section>
+
+    <section id="customize" class="wrap" style="margin-top: 76px;">
+      <div class="section-heading">
+        <div class="kicker">Use your own data</div>
+        <h2>What changes, and what stays fixed.</h2>
+        <p>The model and training flow stay close to the official repository. Your work is concentrated in the manifest and the data preparation step.</p>
+      </div>
+      <div class="check-grid">
+        <article class="check-card"><h3>Change for your dataset</h3><p>Set <code>csv_path</code>, optionally set <code>data_root</code>, and keep the configured column names aligned with your CSV. If needed, customize the preparation script or provide your own manifest.</p></article>
+        <article class="check-card"><h3>Keep the contract</h3><p>Use one image per mask, binary class IDs, explicit split labels, matching dimensions, and non-empty train, val, and test rows. Do not infer split membership from camera names.</p></article>
+        <article class="check-card"><h3>Scale beyond the smoke test</h3><p>Increase the dataset, tune crop and augmentation choices, train for more epochs, and keep a truly untouched test split. Review qualitative masks alongside mIoU and Dice.</p></article>
+        <article class="check-card"><h3>Before trusting a checkpoint</h3><p>Confirm the logits have two channels, the conversion report has full backbone coverage, the checkpoint reloads, and inference outputs contain only class IDs 0 and 1.</p></article>
+      </div>
+      <div class="metrics" aria-label="Verified sample run metrics">
+        <div class="metric"><span class="metric-value">30</span><span class="metric-label">sample images</span></div>
+        <div class="metric"><span class="metric-value">2</span><span class="metric-label">semantic classes</span></div>
+        <div class="metric"><span class="metric-value">1.0</span><span class="metric-label">backbone coverage</span></div>
+        <div class="metric"><span class="metric-value">5</span><span class="metric-label">test outputs</span></div>
+      </div>
+    </section>
+
+    <section id="files" class="wrap" style="margin-top: 76px;">
+      <div class="section-heading">
+        <div class="kicker">Repository map</div>
+        <h2>Where each part of the workflow lives.</h2>
+      </div>
+      <div class="file-grid">
+        <a class="file-card" href="../tools/prepare_coco_csv.py"><h3><code>tools/prepare_coco_csv.py</code></h3><p>Downloads the sample data, writes binary masks, creates the manifest, and validates every row.</p></a>
+        <a class="file-card" href="../mmseg/datasets/csv_binary.py"><h3><code>mmseg/datasets/csv_binary.py</code></h3><p>Loads explicit image-mask pairs from the CSV and exposes the train, val, and test splits.</p></a>
+        <a class="file-card" href="../tools/convert_hf_segformer_to_mmseg.py"><h3><code>tools/convert_hf_segformer_to_mmseg.py</code></h3><p>Maps the Hugging Face state dict and records coverage, skipped keys, and mismatches.</p></a>
+        <a class="file-card" href="../local_configs/segformer_b0_binary_csv.py"><h3><code>local_configs/segformer_b0_binary_csv.py</code></h3><p>Defines the two-class model, CSV datasets, preprocessing, optimizer, and one-epoch runner.</p></a>
+        <a class="file-card" href="../inference.py"><h3><code>inference.py</code></h3><p>Runs a checkpoint on one image, a directory, or a CSV split and writes masks and overlays.</p></a>
+        <a class="file-card" href="../RUN_REPORT.md"><h3><code>RUN_REPORT.md</code></h3><p>Contains the exact setup, training, evaluation, inference commands, metrics, and compatibility notes.</p></a>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">Built for the <a href="../README.md">SegFormer custom-dataset fine-tuning fork</a>. <a href="#top">Back to top</a>.</div>
+  </footer>
+</body>
+</html>
