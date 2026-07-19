@@ -7,6 +7,52 @@
 
 For a native Hugging Face Transformers implementation with a custom binary decoder, see [`HF_pipeline/README.md`](HF_pipeline/README.md). It uses the same CSV dataset contract and original SegFormer-B0 optimizer and schedule defaults, while delegating image and mask preprocessing to `SegformerImageProcessor` and saving checkpoints that can be loaded directly by Transformers.
 
+## Hugging Face custom-dataset pipeline
+
+Prepare a CSV manifest with `image`, `mask`, and `split` columns as described in [`HF_pipeline/README.md`](HF_pipeline/README.md). From the repository root, start the default 160,000-step single-GPU training run with:
+
+```bash
+HF_pipeline/scripts/train.sh
+```
+
+Common overrides are supplied through environment variables:
+
+```bash
+PYTHON_BIN=/path/to/python \
+CSV_PATH=data/coco_binary/manifest.csv \
+OUTPUT_DIR=HF_pipeline/work_dirs/segformer_b0 \
+DEVICE=cuda:0 \
+HF_pipeline/scripts/train.sh
+```
+
+Run a short smoke test before a full training job:
+
+```bash
+HF_pipeline/scripts/train.sh \
+  --max-steps 2 \
+  --batch-size 1 \
+  --workers 0 \
+  --eval-interval 1 \
+  --checkpoint-interval 1 \
+  --log-interval 1
+```
+
+After training, run inference on the test split using the best checkpoint:
+
+```bash
+CHECKPOINT=HF_pipeline/work_dirs/segformer_b0/best_model \
+HF_pipeline/scripts/inference.sh
+```
+
+This writes binary masks and overlays to `HF_pipeline/outputs/test` and prints mIoU and mDice when masks are available. For a single image:
+
+```bash
+CHECKPOINT=HF_pipeline/work_dirs/segformer_b0/best_model \
+HF_pipeline/scripts/inference.sh \
+  --image path/to/image.jpg \
+  --output-dir HF_pipeline/outputs/single
+```
+
 # SegFormer: Simple and Efficient Design for Semantic Segmentation with Transformers
 
 <!-- ![image](resources/image.png) -->
