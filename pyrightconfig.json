@@ -1,0 +1,12 @@
+{
+  "include": ["mmseg", "tools", "tests"],
+  "venvPath": "/home/prj/cross_platform_builder",
+  "venv": ".venv-source-cu128",
+  "extraPaths": [
+    ".",
+    "/home/prj/cross_platform_builder/.venv-source-cu128/lib/python3.9/site-packages"
+  ],
+  "typeCheckingMode": "basic",
+  "reportMissingImports": false,
+  "reportAttributeAccessIssue": false
+}
